@@ -127,18 +127,21 @@ bool okayToCreateTransaction(int numsegs, void **segbases)
 	return okayToCreate;	
 }
 
-transaction_t *searchTransaction(trans_t tid)
+list<transaction_t*>::iterator searchTransaction(trans_t tid)
 {
 	transaction_t *transaction;
-	for(list<transaction_t*>::iterator it = transactionList.begin(); it != transactionList.end(); it++)
+	list<transaction_t*>::iterator it;
+	for(it = transactionList.begin(); it != transactionList.end(); it++)
 	{
 		transaction = *it;
 		if(transaction->tid == tid)
 		{	
-			return transaction;
+			//			return transaction;
+			return it;
 		}
 	}	
-	return transaction;
+//	return transaction;
+	return it;
 }
 
 /*segment_t searchSegment(void* segbase)
@@ -268,13 +271,13 @@ void rvm_unmap(rvm_t rvm, void * segbase)
 */
 trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases)
 {
+	/*TODO: Check if the segbases are mapped. If unmapped then error out. Not explicitly metnioned to check this. But would be a sane thing to do.*/
 	/*Check if any other transaction is using any of these segments in segbases*/
 	if(!okayToCreateTransaction(numsegs, segbases))
 		return -1;
 	/*Create an populate transaction_t*/
-	transaction_t *transaction = (transaction_t*)malloc(sizeof(transaction_t));
+	transaction_t *transaction = new transaction_t;
 	transaction->tid = ++tid_count;
-//	transaction->regionList = new list<region_t*>();
 	transaction->numSegments = numsegs;
 	transaction->segbases = segbases;
 
@@ -286,40 +289,52 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases)
 }
 
 /*
-
+1. Create a region for the range specified in this method.
+2. Create a duplicate copy in undoLog, if you need to abort.
 */
 void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size)
 {
 	cout << "In about to modify";
-	region_t *region;
+	region_t *region = new region_t;
 	region->rid = ++rid_count;
 	region->segbase = segbase;
 	region->offset = offset;
 	region->size = size;
 	region->undoLog = (void*) malloc(size);
 	memcpy(region->undoLog, segbase+offset, size);
-	transaction_t *transaction = searchTransaction(tid);
+	list<transaction_t*>::iterator it = searchTransaction(tid);
+	transaction_t * transaction = *it;
 	(transaction->regionList).push_back(region);
 	cout << "About to modify transaction.regionList.size() = " << (transaction->regionList).size() << endl;
 }
 
 
 /*
-
+1. Apply the undoLog.
+2. Delete the regions
+3. Delete the transaction from the transaction list.
 */
 void rvm_abort_trans(trans_t tid)
 {
 	cout << "In rvm_abort_trans" << endl;
-	transaction_t *transaction = searchTransaction(tid);
+	//transaction_t *transaction = searchTransaction(tid);
+	list<transaction_t*>::iterator it = searchTransaction(tid);
+	transaction_t *transaction = *it;
 	cout << "Transaction id = " << transaction->tid << endl;
 	list<region_t*> region_list = transaction->regionList;
 	cout << "Abort_trans transaction.regionList.size() = " << (transaction->regionList).size() << endl;
 	cout << "region_list size  = " << region_list.size() << endl;
-	for(list<region_t*>::iterator it = region_list.begin(); it != region_list.end(); it++)
+	for(list<region_t*>::iterator iter = region_list.begin(); iter != region_list.end(); iter++)
 	{
 		cout << "In for " << endl;
-		region_t *region = *it;
+		region_t *region = *iter;
 		printf("region.undoLog = %s \n", region->undoLog);
 		memcpy(region->segbase + region->offset, region->undoLog, region->size);
 	}
+	/*Free up the region list*/
+	transaction->regionList.clear();
+
+	/*Delete the transaction from the transaction list*/
+	transactionList.erase(it);
+	tid_count--;
 }
