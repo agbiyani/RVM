@@ -82,6 +82,15 @@ char* constructSegmentFileName(const char* segname, char* dir)
 	return filename;
 }
 
+char *constructSegmentLogFilename(const char *segname, char *dir) {
+	char *filename = (char*) malloc(sizeof(dir) + sizeof(slash) + sizeof(segname) + sizeof(ext) + 1);
+	strncpy(filename, dir, (int) sizeof(dir));
+	strncat(filename, slash, 1);
+	strcat(filename, segname, sizeof(segname));
+	strcat(filename, ".log", 4);
+	return filename;
+}
+
 bool doesSegmentExist(const char* segname)
 {
 	bool segmentExists = false;
@@ -184,11 +193,15 @@ rvm_t rvm_init(const char*directory)
 void rvm_destroy(rvm_t rvm, const char *segname)
 {
 	/*Check if this segment is mapped
-	if(mapped)
-		error
-	else
-		delete the corresponding backing file plus log file.
-	*/
+	/*Check if this segment is mapped*/
+	if(doesSegmentExist(segname)) {
+		cout<<"Segment is currently mapped. Cannot destroy."<<endl;
+	else {
+		const char *SegmentFilepath = constructSegmentFilename(segname, rvm.dir);
+		remove(SegmentFilepath);
+		const char *SegmentLogFilepath = constructSegmentLogFilename(segname, rvm.dir);
+		remove(SegmentLogFilepath);
+	}
 }
 
 /*
@@ -337,4 +350,24 @@ void rvm_abort_trans(trans_t tid)
 	/*Delete the transaction from the transaction list*/
 	transactionList.erase(it);
 	tid_count--;
+}
+
+void void rvm_commit_trans(trans_t tid) {
+	cout<<"Attempting commit."<<endl;
+	list<transaction_t*>::iterator it = searchTransaction(tid);
+	transaction_t *transaction = *it;
+	cout << "Transaction id = " << transaction->tid << endl;
+	list<region_t*> region_list = transaction->regionList;
+	
+	for(list<region_t*>::iterator iter = region_list.begin(); iter != region_list.end(); iter++)
+	{
+		//Copy each region to log file
+		segment_t seg = searchSegment(segbase);
+		char *LogFilename = constructSegmentLogFilename(seg->segname, "dir"//how to get dir?);
+		
+		ofstream myfile;
+  		myfile.open (LogFilename, ios::app);
+  		myfile << (char *) segbase<<endl<<"#"<<endl;
+  		myfile.close();                                                            
+	}
 }
