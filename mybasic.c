@@ -17,30 +17,25 @@ int main(int argc, char **argv)
 {
      rvm_t rvm;
      trans_t trans;
-     char* segs[1];
+     char* segs[2];
      rvm = rvm_init("rvm_segments");
-//     rvm_destroy(rvm, "testseg");
-     segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
-     printf("Seg[0] = %s \n", segs[0]);
-
+     segs[0] = (char *) rvm_map(rvm, "testseg1", 10000);
+     segs[1] = (char *) rvm_map(rvm, "testseg2", 10000);
      
-     trans = rvm_begin_trans(rvm, 1, (void **) segs);
-     printf("1. trans = %d \n", trans);
+     trans = rvm_begin_trans(rvm, 2, (void **) segs);
+
      rvm_about_to_modify(trans, segs[0], 0, 100);
+     sprintf(segs[0], TEST_STRING);
+     rvm_about_to_modify(trans, segs[1], OFFSET2, 100);
+     sprintf(segs[1]+OFFSET2, TEST_STRING);
+     printf("Segs[0] = %s", segs[0]);
+     printf("Segs[1] = %s", segs[1]);
 
+     rvm_commit_trans(trans);
 
-     //sprintf(segs[0], TEST_STRING);
-	strcat(segs[0], TEST_STRING);
-     
-     printf("after writing Seg[0] = %s \n", segs[0]);
-  /*   rvm_about_to_modify(trans, segs[0], OFFSET2, 100);
-     sprintf(segs[0]+OFFSET2, TEST_STRING);
-*/
-//     rvm_abort_trans(trans);     
-//     printf("after abort_trans  Seg[0] = %s \n", segs[0]);
-  /*   rvm_commit_trans(trans);
-
-     abort();
-     */
-     return 0;
-     }
+   rvm_truncate_log(rvm);
+    
+/*     rvm_unmap(rvm, segs[0]);
+     rvm_destroy(rvm, "testseg");
+  */   return 0;
+}

@@ -21,4 +21,6 @@ $(LIBRARY): $(LIB_OBJ)
 	$(RANLIB) $(LIBRARY)
 
 clean:
-	$(RM) $(LIBRARY) $(LIB_OBJ)
+	$(RM) $(LIBRARY) $(LIB_OBJ) 
+	rm -rf rvm_segments
+
